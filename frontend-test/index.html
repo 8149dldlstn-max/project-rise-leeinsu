@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>7ill (테스트 프론트엔드)</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="toast"></div>
+
+<div id="confirm-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+  <div class="card" style="width:320px; text-align:center;">
+    <p id="confirm-message"></p>
+    <div class="btn-row" style="justify-content:center">
+      <button onclick="confirmYes()">예</button>
+      <button class="secondary" onclick="confirmNo()">아니오</button>
+    </div>
+  </div>
+</div>
+
+<!-- 1. 로고창 -->
+<div id="screen-splash" class="screen active">7ill</div>
+
+<!-- 2. 로그인/회원가입 선택창 -->
+<div id="screen-auth-choice" class="screen">
+  <div class="auth-wrap">
+    <div class="card" style="text-align:center">
+      <h2>7ill</h2>
+      <p style="color:#777;font-size:13px">팀원과 작업물을 공유하고 피드백하는 공간</p>
+      <div class="btn-row" style="flex-direction:column">
+        <button onclick="showScreen('screen-login')">로그인</button>
+        <button class="secondary" onclick="showScreen('screen-register')">회원가입</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2-1. 로그인창 -->
+<div id="screen-login" class="screen">
+  <div class="auth-wrap">
+    <div class="card">
+      <h2>로그인</h2>
+      <label>이메일(아이디)</label>
+      <input id="login-email" type="email" placeholder="kim@example.com" />
+      <label>비밀번호</label>
+      <input id="login-password" type="password" />
+      <div class="btn-row">
+        <button onclick="doLogin()">로그인</button>
+        <button class="secondary" onclick="showScreen('screen-auth-choice')">뒤로</button>
+      </div>
+      <p style="margin-top:14px">
+        <button class="link-btn" onclick="showScreen('screen-reset-request')">비밀번호를 잊으셨나요?</button>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- 2-2. 회원가입창 -->
+<div id="screen-register" class="screen">
+  <div class="auth-wrap">
+    <div class="card">
+      <h2>회원가입</h2>
+      <label>이메일(아이디)</label>
+      <input id="register-email" type="email" placeholder="kim@example.com" />
+      <label>비밀번호 (6자 이상)</label>
+      <input id="register-password" type="password" />
+      <label>비밀번호 확인</label>
+      <input id="register-password-confirm" type="password" />
+      <label>닉네임 (1~20자, &lt; &gt; 불가)</label>
+      <input id="register-nickname" type="text" maxlength="20" />
+      <div class="btn-row">
+        <button onclick="doRegister()">가입하기</button>
+        <button class="secondary" onclick="showScreen('screen-auth-choice')">뒤로</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 비밀번호 재설정: 요청 -->
+<div id="screen-reset-request" class="screen">
+  <div class="auth-wrap">
+    <div class="card">
+      <h2>비밀번호 재설정 요청</h2>
+      <p style="font-size:12px;color:#777">요청 후 어드민이 코드를 발급하면, 아래 "코드로 재설정"에서 새 비밀번호를 설정하세요.</p>
+      <label>이메일</label>
+      <input id="reset-request-email" type="email" />
+      <div class="btn-row">
+        <button onclick="doResetRequest()">요청하기</button>
+      </div>
+      <p style="margin-top:14px">
+        <button class="link-btn" onclick="showScreen('screen-reset-confirm')">코드로 재설정하기 →</button>
+      </p>
+      <p><button class="link-btn" onclick="showScreen('screen-login')">← 로그인으로</button></p>
+    </div>
+  </div>
+</div>
+
+<!-- 비밀번호 재설정: 확인 -->
+<div id="screen-reset-confirm" class="screen">
+  <div class="auth-wrap">
+    <div class="card">
+      <h2>코드로 비밀번호 재설정</h2>
+      <label>이메일</label>
+      <input id="reset-confirm-email" type="email" />
+      <label>어드민이 발급한 코드</label>
+      <input id="reset-confirm-code" type="text" />
+      <label>새 비밀번호</label>
+      <input id="reset-confirm-password" type="password" />
+      <label>새 비밀번호 확인</label>
+      <input id="reset-confirm-password-confirm" type="password" />
+      <div class="btn-row">
+        <button onclick="doResetConfirm()">재설정하기</button>
+      </div>
+      <p><button class="link-btn" onclick="showScreen('screen-login')">← 로그인으로</button></p>
+    </div>
+  </div>
+</div>
+
+<!-- 3. 라운지창 -->
+<div id="screen-lounge" class="screen">
+  <div class="lounge-main">
+    <div class="lounge-header">
+      <div>
+        <button class="nickname-btn" onclick="openMyPage()">👤 <span id="lounge-nickname">-</span></button>
+        <span id="lounge-status" class="hint"></span>
+        <span id="lounge-role-badge"></span>
+      </div>
+      <div>
+        <button class="secondary small" onclick="openTeam()">팀원</button>
+        <button id="lounge-admin-btn" class="secondary small" style="display:none" onclick="openAdmin()">어드민</button>
+        <button class="secondary small" onclick="logout()">로그아웃</button>
+      </div>
+    </div>
+
+    <div class="board-tabs">
+      <button id="tab-all" class="active-tab" onclick="switchBoard('ALL')">전체</button>
+      <button id="tab-work" class="secondary" onclick="switchBoard('WORK')">작업물공간</button>
+      <button id="tab-free" class="secondary" onclick="switchBoard('FREE')">자유게시판</button>
+    </div>
+
+    <div id="tag-filter-row" style="margin-bottom:12px">
+      <select id="tag-filter" onchange="loadFeed()">
+        <option value="">전체 태그</option>
+      </select>
+    </div>
+
+    <div id="feed" class="feed-scroll"></div>
+  </div>
+
+  <div class="chat-panel">
+    <div class="chat-header">💬 전체 채팅</div>
+    <div id="chat-messages" class="chat-messages"></div>
+    <div class="chat-input-row">
+      <input id="chat-input" type="text" placeholder="메시지 입력..." onkeydown="if(event.key==='Enter') sendChat()" />
+      <button class="small" onclick="sendChat()">전송</button>
+    </div>
+  </div>
+
+  <button class="fab" onclick="openWrite()">✏️</button>
+</div>
+
+<!-- 4. 글쓰기창 -->
+<div id="screen-write" class="screen">
+  <div class="page-wrap">
+    <div class="top-bar">
+      <button class="secondary small" onclick="showScreen('screen-lounge')">✕</button>
+      <h2>글쓰기</h2>
+    </div>
+    <div class="section-box">
+      <div class="field-row">
+        <label>게시판 선택</label>
+        <div class="pill-radio">
+          <label><input type="radio" name="write-board" value="WORK" checked onchange="renderWriteFields()" /><span>작업물공간</span></label>
+          <label><input type="radio" name="write-board" value="FREE" onchange="renderWriteFields()" /><span>자유게시판</span></label>
+        </div>
+      </div>
+      <div class="field-row">
+        <label>태그</label>
+        <select id="write-tag"><option value="">선택 안 함</option></select>
+        <p class="hint"><button class="link-btn" onclick="toggleTagRequestBox()">+ 목록에 없는 태그 요청하기 (어드민 승인 필요)</button></p>
+        <div id="tag-request-box" style="display:none;margin-top:8px;gap:6px">
+          <input id="tag-request-name" placeholder="요청할 태그 이름" style="flex:1" />
+          <button class="small" onclick="requestNewTag()">요청</button>
+        </div>
+      </div>
+      <div class="field-row">
+        <label>제목 (최대 50자)</label>
+        <input id="write-title" maxlength="50" />
+      </div>
+      <div class="field-row">
+        <label>내용 (최대 500자)</label>
+        <textarea id="write-content" maxlength="500" rows="5"></textarea>
+      </div>
+      <div class="field-row">
+        <label>이미지 URL (쉼표로 구분, 최대 10장 — 실제 업로드 UI는 없음, URL만 입력)</label>
+        <input id="write-images" placeholder="https://.../1.jpg, https://.../2.jpg" />
+      </div>
+      <div class="field-row">
+        <label>음악 파일 URL (1개)</label>
+        <input id="write-music" placeholder="https://.../song.mp3" />
+      </div>
+      <div class="field-row">
+        <label>영상 파일 URL (1개)</label>
+        <input id="write-video" placeholder="https://.../clip.mp4" />
+      </div>
+      <div class="btn-row">
+        <button onclick="submitWrite()">확인</button>
+        <button class="secondary" onclick="showScreen('screen-lounge')">취소</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 5. 게시물 상세창 (작업물공간/자유게시판 공통) -->
+<div id="screen-post-detail" class="screen">
+  <div class="page-wrap">
+    <div class="top-bar">
+      <button class="secondary small" onclick="showScreen('screen-lounge')">←</button>
+      <h2 id="detail-title">-</h2>
+    </div>
+    <div class="section-box">
+      <p class="hint" id="detail-meta"></p>
+      <span id="detail-tag-chip" class="hint"></span>
+      <p id="detail-content"></p>
+      <div id="detail-files"></div>
+      <div id="detail-owner-actions" class="post-owner-actions" style="display:none">
+        <button class="small" onclick="startEditPost()">수정</button>
+        <button class="small danger" onclick="deletePost()">삭제</button>
+      </div>
+    </div>
+
+    <div id="detail-edit-box" class="section-box" style="display:none">
+      <h3>수정</h3>
+      <div class="field-row"><label>제목</label><input id="edit-title" maxlength="50" /></div>
+      <div class="field-row"><label>내용</label><textarea id="edit-content" maxlength="500" rows="4"></textarea></div>
+      <div class="btn-row">
+        <button onclick="submitEditPost()">저장</button>
+        <button class="secondary" onclick="document.getElementById('detail-edit-box').style.display='none'">취소</button>
+      </div>
+    </div>
+
+    <div id="detail-marks-box" class="section-box" style="display:none">
+      <h3>시분초 마크</h3>
+      <div id="marks-list"></div>
+      <div class="field-row" style="margin-top:10px">
+        <label>몇 초 지점</label>
+        <input id="mark-time" type="number" step="0.1" min="0" style="width:120px" />
+      </div>
+      <div class="pill-radio">
+        <label><input type="radio" name="mark-kind" value="TAG" checked onchange="renderMarkFields()" /><span>TAG</span></label>
+        <label><input type="radio" name="mark-kind" value="EMOJI" onchange="renderMarkFields()" /><span>EMOJI</span></label>
+        <label><input type="radio" name="mark-kind" value="COMMENT" onchange="renderMarkFields()" /><span>COMMENT</span></label>
+      </div>
+      <div id="mark-field-box" class="field-row"></div>
+      <button class="small" onclick="submitMark()">마크 추가</button>
+    </div>
+
+    <div class="section-box">
+      <h3>댓글</h3>
+      <div id="comments-list"></div>
+      <div class="field-row" style="margin-top:10px">
+        <label id="comment-reply-label">댓글 내용</label>
+        <textarea id="comment-content" rows="2"></textarea>
+      </div>
+      <button class="small" onclick="submitComment()">댓글 작성</button>
+      <button class="small secondary" id="comment-cancel-reply" style="display:none" onclick="cancelReply()">답글 취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- 6. 마이페이지 -->
+<div id="screen-mypage" class="screen">
+  <div class="page-wrap">
+    <div class="top-bar">
+      <button class="secondary small" onclick="showScreen('screen-lounge')">←</button>
+      <h2>마이페이지</h2>
+    </div>
+    <div class="section-box">
+      <p><b id="mypage-email"></b> · <span id="mypage-role"></span></p>
+      <div class="field-row">
+        <label>상태메시지 (최대 100자)</label>
+        <textarea id="mypage-status" maxlength="100" rows="2"></textarea>
+      </div>
+      <button class="small" onclick="submitStatusMessage()">상태메시지 저장</button>
+    </div>
+    <div class="section-box">
+      <h3>내가 쓴 글</h3>
+      <div id="mypage-posts"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 7. 어드민 -->
+<div id="screen-admin" class="screen">
+  <div class="page-wrap">
+    <div class="top-bar">
+      <button class="secondary small" onclick="showScreen('screen-lounge')">←</button>
+      <h2>어드민</h2>
+    </div>
+    <div class="admin-tabs">
+      <button id="admin-tab-tags" class="active-tab" onclick="switchAdminTab('tags')">태그 요청</button>
+      <button id="admin-tab-reset" class="secondary" onclick="switchAdminTab('reset')">비밀번호 재설정</button>
+    </div>
+
+    <div id="admin-section-tags" class="admin-section active section-box">
+      <table>
+        <thead><tr><th>이름</th><th>요청자ID</th><th>상태</th><th>액션</th></tr></thead>
+        <tbody id="admin-tag-requests-body"></tbody>
+      </table>
+    </div>
+
+    <div id="admin-section-reset" class="admin-section section-box">
+      <table>
+        <thead><tr><th>이메일</th><th>닉네임</th><th>상태</th><th>코드</th><th>액션</th></tr></thead>
+        <tbody id="admin-reset-requests-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 8. 팀원 목록 -->
+<div id="screen-team" class="screen">
+  <div class="page-wrap">
+    <div class="top-bar">
+      <button class="secondary small" onclick="showScreen('screen-lounge')">←</button>
+      <h2>팀원</h2>
+    </div>
+    <div id="team-list"></div>
+  </div>
+</div>
+
+<script src="app.js?v=4"></script>
+</body>
+</html>

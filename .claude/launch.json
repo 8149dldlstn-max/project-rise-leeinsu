@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "art-collab-backend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:dev"],
+      "port": 3000,
+      "url": "http://localhost:3000"
+    },
+    {
+      "name": "7ill-test-frontend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["frontend-test/serve.js"],
+      "port": 5173
+    }
+  ]
+}

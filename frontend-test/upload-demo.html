@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>7ill 업로드 데모</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --border: #d8d8e0;
+    --card: #ffffff;
+    --bg: #f4f5f8;
+    --accent: #5b5bf0;
+    --text: #1b1b23;
+    --muted: #6b6b78;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Pretendard, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+  }
+  h1 { font-size: 20px; margin: 0 0 16px; }
+  h2 { font-size: 15px; margin: 0 0 12px; color: var(--muted); }
+  .wrap { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  label { display: block; font-size: 13px; margin: 10px 0 4px; color: var(--muted); }
+  input[type="text"], input[type="email"], input[type="password"], textarea, select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    background: transparent;
+    color: inherit;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  button {
+    margin-top: 12px;
+    padding: 9px 16px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .status { font-size: 12px; color: var(--muted); margin-top: 8px; white-space: pre-wrap; }
+  .status.error { color: #d33; }
+  .hidden { display: none !important; }
+  .post {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .post-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .post-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #ddd; object-fit: cover; flex-shrink: 0;
+  }
+  .post-author { font-weight: 600; font-size: 13px; }
+  .post-time { font-size: 11px; color: var(--muted); margin-left: auto; }
+  .post-title { font-weight: 600; margin: 4px 0; }
+  .post-content { font-size: 14px; white-space: pre-wrap; margin-bottom: 8px; }
+  .post-images { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .post-images img { width: 100px; height: 100px; object-fit: cover; border-radius: 6px; }
+  .post video, .post audio { width: 100%; margin-bottom: 6px; }
+  .badge {
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px;
+    background: #eee; color: #555; margin-left: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>7ill 업로드 데모 — 파일 올려서 게시물로 보기</h1>
+
+  <div class="card" id="login-card">
+    <h2>1. 로그인</h2>
+    <label>이메일</label>
+    <input type="email" id="login-email" value="frontend-test@example.com" />
+    <label>비밀번호</label>
+    <input type="password" id="login-password" value="newpass456" />
+    <button id="login-btn">로그인</button>
+    <div class="status" id="login-status"></div>
+  </div>
+
+  <div class="card hidden" id="write-card">
+    <h2>2. 게시물 작성 (파일 선택 → 자동 업로드 → 게시)</h2>
+    <div class="row">
+      <div>
+        <label>게시판</label>
+        <select id="write-board">
+          <option value="FREE">자유게시판</option>
+          <option value="WORK">작업물공간</option>
+        </select>
+      </div>
+    </div>
+    <label>제목</label>
+    <input type="text" id="write-title" placeholder="제목" />
+    <label>내용</label>
+    <textarea id="write-content" placeholder="내용"></textarea>
+    <label>이미지 파일 (여러 장 선택 가능, 최대 10장)</label>
+    <input type="file" id="write-images" accept="image/*" multiple />
+    <label>음악 파일 (1개)</label>
+    <input type="file" id="write-music" accept="audio/*" />
+    <label>영상 파일 (1개)</label>
+    <input type="file" id="write-video" accept="video/*" />
+    <button id="write-btn">업로드하고 게시하기</button>
+    <div class="status" id="write-status"></div>
+  </div>
+
+  <div class="card hidden" id="feed-card">
+    <h2>3. 피드 <button id="refresh-btn" style="margin:0 0 0 8px; padding:4px 10px; font-size:12px;">새로고침</button></h2>
+    <div id="feed"></div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:3000';
+let token = null;
+let usersById = {};
+
+const $ = (id) => document.getElementById(id);
+const setStatus = (id, text, isError) => {
+  const el = $(id);
+  el.textContent = text;
+  el.className = 'status' + (isError ? ' error' : '');
+};
+
+$('login-btn').addEventListener('click', async () => {
+  setStatus('login-status', '로그인 중...');
+  try {
+    const res = await fetch(`${API}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: $('login-email').value,
+        password: $('login-password').value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || '로그인 실패');
+    token = data.accessToken;
+    setStatus('login-status', '로그인 성공');
+    $('write-card').classList.remove('hidden');
+    $('feed-card').classList.remove('hidden');
+    await loadUsers();
+    await loadFeed();
+  } catch (e) {
+    setStatus('login-status', '실패: ' + e.message, true);
+  }
+});
+
+async function loadUsers() {
+  try {
+    const res = await fetch(`${API}/users`, { headers: authHeaders() });
+    const list = await res.json();
+    usersById = {};
+    for (const u of list) usersById[u.id] = u;
+  } catch (e) {
+    // 팀원 목록은 부가 정보라 실패해도 피드 표시엔 지장 없음
+  }
+}
+
+function authHeaders() {
+  return { Authorization: `Bearer ${token}` };
+}
+
+async function uploadFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${API}/files/upload`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || '업로드 실패');
+  return data.url;
+}
+
+$('write-btn').addEventListener('click', async () => {
+  const button = $('write-btn');
+  button.disabled = true;
+  try {
+    const imageFiles = Array.from($('write-images').files);
+    const musicFile = $('write-music').files[0];
+    const videoFile = $('write-video').files[0];
+
+    const imageUrls = [];
+    for (let i = 0; i < imageFiles.length; i++) {
+      setStatus('write-status', `이미지 업로드 중... (${i + 1}/${imageFiles.length})`);
+      imageUrls.push(await uploadFile(imageFiles[i]));
+    }
+
+    let musicUrl;
+    if (musicFile) {
+      setStatus('write-status', '음악 파일 업로드 중...');
+      musicUrl = await uploadFile(musicFile);
+    }
+
+    let videoUrl;
+    if (videoFile) {
+      setStatus('write-status', '영상 파일 업로드 중...');
+      videoUrl = await uploadFile(videoFile);
+    }
+
+    setStatus('write-status', '게시물 작성 중...');
+    const res = await fetch(`${API}/posts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({
+        boardType: $('write-board').value,
+        title: $('write-title').value,
+        content: $('write-content').value,
+        imageUrls: imageUrls.length ? imageUrls : undefined,
+        musicUrl,
+        videoUrl,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || '게시 실패');
+
+    setStatus('write-status', '게시 완료!');
+    $('write-title').value = '';
+    $('write-content').value = '';
+    $('write-images').value = '';
+    $('write-music').value = '';
+    $('write-video').value = '';
+    await loadFeed();
+  } catch (e) {
+    setStatus('write-status', '실패: ' + e.message, true);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$('refresh-btn').addEventListener('click', loadFeed);
+
+async function loadFeed() {
+  const res = await fetch(`${API}/posts`, { headers: authHeaders() });
+  const posts = await res.json();
+  const feed = $('feed');
+  feed.innerHTML = '';
+  for (const post of posts) {
+    const author = usersById[post.authorId];
+    const el = document.createElement('div');
+    el.className = 'post';
+
+    const head = document.createElement('div');
+    head.className = 'post-head';
+    const avatar = document.createElement('img');
+    avatar.className = 'post-avatar';
+    avatar.src = author?.profileImageUrl || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"><rect width="28" height="28" fill="%23ddd"/></svg>';
+    const authorName = document.createElement('span');
+    authorName.className = 'post-author';
+    authorName.textContent = author?.nickname || `user#${post.authorId}`;
+    const badge = document.createElement('span');
+    badge.className = 'badge';
+    badge.textContent = post.boardType === 'WORK' ? '작업물공간' : '자유게시판';
+    const time = document.createElement('span');
+    time.className = 'post-time';
+    time.textContent = new Date(post.createdAt).toLocaleString('ko-KR');
+    head.append(avatar, authorName, badge, time);
+
+    const title = document.createElement('div');
+    title.className = 'post-title';
+    title.textContent = post.title;
+
+    const content = document.createElement('div');
+    content.className = 'post-content';
+    content.textContent = post.content;
+
+    el.append(head, title, content);
+
+    if (post.imageUrls?.length) {
+      const imagesWrap = document.createElement('div');
+      imagesWrap.className = 'post-images';
+      for (const url of post.imageUrls) {
+        const img = document.createElement('img');
+        img.src = url;
+        imagesWrap.appendChild(img);
+      }
+      el.appendChild(imagesWrap);
+    }
+    if (post.videoUrl) {
+      const video = document.createElement('video');
+      video.src = post.videoUrl;
+      video.controls = true;
+      el.appendChild(video);
+    }
+    if (post.musicUrl) {
+      const audio = document.createElement('audio');
+      audio.src = post.musicUrl;
+      audio.controls = true;
+      el.appendChild(audio);
+    }
+
+    feed.appendChild(el);
+  }
+}
+</script>
+</body>
+</html>
