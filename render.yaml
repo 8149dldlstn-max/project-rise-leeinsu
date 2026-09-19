@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: art-collab-backend
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: node dist/main
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_SYNCHRONIZE
+        value: "false"
+      - key: DATABASE_SSL
+        value: "true"
+      - key: JWT_ACCESS_EXPIRATION_SECONDS
+        value: "86400"
+      - key: DATABASE_HOST
+        sync: false
+      - key: DATABASE_PORT
+        sync: false
+      - key: DATABASE_NAME
+        sync: false
+      - key: DATABASE_USERNAME
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+  - type: web
+    name: art-collab-frontend
+    env: static
+    buildCommand: echo "no build needed"
+    staticPublishPath: ./frontend-test

@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3000';
+const API_BASE = window.__API_BASE__ || 'http://localhost:3000';
 
 const state = {
   token: localStorage.getItem('7ill_token') || null,

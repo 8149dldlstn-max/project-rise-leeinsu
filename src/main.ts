@@ -23,7 +23,8 @@ async function bootstrap() {
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api-docs', app, swaggerDocument);
 
-  const appPort = process.env.APP_PORT ?? 3000;
+  // Render 등 호스팅은 PORT를 강제로 주입하므로 APP_PORT보다 우선한다
+  const appPort = process.env.PORT ?? process.env.APP_PORT ?? 3000;
   await app.listen(appPort);
 }
 bootstrap();
