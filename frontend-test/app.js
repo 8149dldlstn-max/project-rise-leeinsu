@@ -235,8 +235,17 @@ async function loadFeed() {
       const boardBadge = state.currentBoard === 'ALL'
         ? `<span class="tag-chip" style="background:#dbeafe;color:#1e40af">${p.boardType}</span> `
         : '';
+      const thumb = p.imageUrls?.[0]
+        ? `<img src="${escapeHtml(p.imageUrls[0])}" style="width:100%;height:100px;object-fit:cover;border-radius:8px;margin-bottom:6px" />`
+        : '';
+      const mediaBadges = [
+        p.videoUrl ? '🎬' : '',
+        p.musicUrl ? '🎵' : '',
+        p.imageUrls?.length ? `🖼️${p.imageUrls.length}` : '',
+      ].filter(Boolean).join(' ');
       return `<div class="feed-card" onclick="openPostDetail(${p.id})">
-        ${boardBadge}${tag ? `<span class="tag-chip">${escapeHtml(tag.name)}</span>` : ''}
+        ${thumb}
+        ${boardBadge}${tag ? `<span class="tag-chip">${escapeHtml(tag.name)}</span>` : ''}${mediaBadges ? ` <span class="hint">${mediaBadges}</span>` : ''}
         <h4>${escapeHtml(p.title)}</h4>
         <p class="hint">by ${escapeHtml(authorLabel(p.authorId))} · ${new Date(p.createdAt).toLocaleString()}</p>
         <p>${escapeHtml(p.content).slice(0, 40)}</p>
@@ -388,11 +397,19 @@ async function openPostDetail(id) {
     $('detail-meta').textContent = `게시판: ${post.boardType} · 작성자: ${authorLabel(post.authorId)} · ${new Date(post.createdAt).toLocaleString()}`;
     $('detail-content').textContent = post.content;
 
-    const files = [];
-    if (post.imageUrls?.length) files.push('이미지: ' + post.imageUrls.join(', '));
-    if (post.musicUrl) files.push('음악: ' + post.musicUrl);
-    if (post.videoUrl) files.push('영상: ' + post.videoUrl);
-    $('detail-files').innerHTML = files.map((f) => `<p class="hint">${escapeHtml(f)}</p>`).join('');
+    const mediaHtml = [];
+    if (post.imageUrls?.length) {
+      mediaHtml.push(`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${
+        post.imageUrls.map((url) => `<img src="${escapeHtml(url)}" style="width:120px;height:120px;object-fit:cover;border-radius:8px" />`).join('')
+      }</div>`);
+    }
+    if (post.videoUrl) {
+      mediaHtml.push(`<video src="${escapeHtml(post.videoUrl)}" controls style="width:100%;border-radius:8px;margin-bottom:8px"></video>`);
+    }
+    if (post.musicUrl) {
+      mediaHtml.push(`<audio src="${escapeHtml(post.musicUrl)}" controls style="width:100%;margin-bottom:8px"></audio>`);
+    }
+    $('detail-files').innerHTML = mediaHtml.join('');
 
     $('detail-owner-actions').style.display = canManage(post.authorId) ? 'flex' : 'none';
     $('detail-edit-box').style.display = 'none';
