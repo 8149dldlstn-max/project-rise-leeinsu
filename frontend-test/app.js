@@ -403,13 +403,25 @@ async function openPostDetail(id) {
         post.imageUrls.map((url) => `<img src="${escapeHtml(url)}" style="width:120px;height:120px;object-fit:cover;border-radius:8px" />`).join('')
       }</div>`);
     }
+    // 시분초 마크는 WORK 게시물 전용이라, 마크와 동기화할 재생기 하나만 id를 붙인다
+    // (영상+음악이 둘 다 있는 드문 경우엔 영상 기준으로 마크를 맞춘다)
     if (post.videoUrl) {
-      mediaHtml.push(`<video src="${escapeHtml(post.videoUrl)}" controls style="width:100%;border-radius:8px;margin-bottom:8px"></video>`);
+      mediaHtml.push(`<video id="detail-media-player" src="${escapeHtml(post.videoUrl)}" controls style="width:100%;border-radius:8px;margin-bottom:4px"></video>`);
     }
     if (post.musicUrl) {
-      mediaHtml.push(`<audio src="${escapeHtml(post.musicUrl)}" controls style="width:100%;margin-bottom:8px"></audio>`);
+      const primaryId = post.videoUrl ? '' : ' id="detail-media-player"';
+      mediaHtml.push(`<audio${primaryId} src="${escapeHtml(post.musicUrl)}" controls style="width:100%;margin-bottom:4px"></audio>`);
+    }
+    if (post.boardType === 'WORK' && (post.videoUrl || post.musicUrl)) {
+      mediaHtml.push(`<div id="detail-marks-track" class="marks-track"><div class="marks-track-bar"><div id="detail-mark-playhead" class="mark-playhead"></div></div></div>`);
     }
     $('detail-files').innerHTML = mediaHtml.join('');
+
+    const player = $('detail-media-player');
+    if (player) {
+      player.addEventListener('loadedmetadata', renderMarksTrack);
+      player.addEventListener('timeupdate', updatePlayhead);
+    }
 
     $('detail-owner-actions').style.display = canManage(post.authorId) ? 'flex' : 'none';
     $('detail-edit-box').style.display = 'none';
@@ -418,6 +430,8 @@ async function openPostDetail(id) {
     if (post.boardType === 'WORK') {
       renderMarkFields();
       await loadMarks(id);
+    } else {
+      state.currentMarks = [];
     }
 
     cancelReply();
@@ -473,10 +487,48 @@ function markValue(m) {
   return m.kind === 'TAG' ? m.tag : m.kind === 'EMOJI' ? m.emoji : m.content;
 }
 
+function markIcon(m) {
+  return m.kind === 'EMOJI' ? (m.emoji || '❓') : m.kind === 'TAG' ? '🏷️' : '💬';
+}
+
+// 영상/음악 재생 위치에 마크를 작은 점으로 표시하는 타임라인
+function renderMarksTrack() {
+  const track = $('detail-marks-track');
+  if (!track) return; // 미디어 없는 게시물이거나 자유게시판
+  const player = $('detail-media-player');
+  const duration = player?.duration;
+  const bar = track.querySelector('.marks-track-bar');
+  if (!player || !duration || !isFinite(duration)) return;
+
+  const dots = state.currentMarks.map((m) => {
+    const percent = Math.min(100, Math.max(0, (m.timestampSec / duration) * 100));
+    const label = `${m.timestampSec}s · ${markValue(m) || ''}`;
+    return `<div class="mark-dot" style="left:${percent}%" title="${escapeHtml(label)}" onclick="seekTo(${m.timestampSec})">${markIcon(m)}</div>`;
+  }).join('');
+  bar.innerHTML = `<div id="detail-mark-playhead" class="mark-playhead"></div>${dots}`;
+  updatePlayhead();
+}
+
+function updatePlayhead() {
+  const player = $('detail-media-player');
+  const playhead = $('detail-mark-playhead');
+  if (!player || !playhead || !player.duration || !isFinite(player.duration)) return;
+  const percent = Math.min(100, Math.max(0, (player.currentTime / player.duration) * 100));
+  playhead.style.left = percent + '%';
+}
+
+function seekTo(seconds) {
+  const player = $('detail-media-player');
+  if (!player) return;
+  player.currentTime = seconds;
+  player.play().catch(() => {}); // 자동재생 정책으로 거부돼도 조용히 무시(수동 재생 버튼은 그대로 동작)
+}
+
 async function loadMarks(postId) {
   try {
     const marks = await api(`/posts/${postId}/marks`);
     state.currentMarks = marks; // onclick 문자열에 값을 직접 끼워넣지 않고 id로 조회하기 위해 보관
+    renderMarksTrack();
     $('marks-list').innerHTML = marks.map((m) => `
       <div class="mark-item" id="mark-row-${m.id}">
         <span class="mark-time">${m.timestampSec}s</span>
@@ -510,7 +562,11 @@ function startEditMark(markId) {
 async function submitEditMark(markId) {
   const box = $(`mark-edit-${markId}`);
   const kind = box.dataset.kind;
-  const value = $(`mark-edit-value-${markId}`).value;
+  const value = $(`mark-edit-value-${markId}`).value.trim();
+  if (!value) {
+    toast('내용을 입력해주세요.', false);
+    return;
+  }
   const body = { kind };
   if (kind === 'TAG') body.tag = value;
   else if (kind === 'EMOJI') body.emoji = value;
@@ -538,7 +594,11 @@ function deleteMark(markId) {
 
 async function submitMark() {
   const kind = document.querySelector('input[name="mark-kind"]:checked').value;
-  const value = $('mark-tag-value').value;
+  const value = $('mark-tag-value').value.trim();
+  if (!value) {
+    toast('내용을 입력해주세요.', false);
+    return;
+  }
   const body = { timestampSec: Number($('mark-time').value || 0), kind };
   if (kind === 'TAG') body.tag = value;
   else if (kind === 'EMOJI') body.emoji = value;
