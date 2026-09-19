@@ -325,11 +325,38 @@ async function requestNewTag() {
   }
 }
 
+async function uploadFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const headers = {};
+  if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
+  const res = await fetch(API_BASE + '/files/upload', { method: 'POST', headers, body: formData });
+  const text = await res.text();
+  let body = null;
+  if (text) { try { body = JSON.parse(text); } catch (e) { body = text; } }
+  if (!res.ok) {
+    const msg = Array.isArray(body?.message) ? body.message.join(', ') : body?.message || res.statusText;
+    throw new Error(msg);
+  }
+  return body.url;
+}
+
 async function submitWrite() {
   const boardType = document.querySelector('input[name="write-board"]:checked').value;
   const tagId = $('write-tag').value;
-  const imageUrls = $('write-images').value.split(',').map((s) => s.trim()).filter(Boolean);
+  const imageFiles = Array.from($('write-images').files);
+  const musicFile = $('write-music').files[0];
+  const videoFile = $('write-video').files[0];
+
   try {
+    const imageUrls = [];
+    for (let i = 0; i < imageFiles.length; i++) {
+      toast(`이미지 업로드 중... (${i + 1}/${imageFiles.length})`, true);
+      imageUrls.push(await uploadFile(imageFiles[i]));
+    }
+    const musicUrl = musicFile ? await uploadFile(musicFile) : undefined;
+    const videoUrl = videoFile ? await uploadFile(videoFile) : undefined;
+
     await api('/posts', {
       method: 'POST',
       body: JSON.stringify({
@@ -338,8 +365,8 @@ async function submitWrite() {
         title: $('write-title').value,
         content: $('write-content').value,
         imageUrls: imageUrls.length ? imageUrls : undefined,
-        musicUrl: $('write-music').value || undefined,
-        videoUrl: $('write-video').value || undefined,
+        musicUrl,
+        videoUrl,
       }),
     });
     toast('게시물이 작성됐습니다.', true);

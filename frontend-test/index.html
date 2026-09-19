@@ -193,16 +193,16 @@
         <textarea id="write-content" maxlength="500" rows="5"></textarea>
       </div>
       <div class="field-row">
-        <label>이미지 URL (쉼표로 구분, 최대 10장 — 실제 업로드 UI는 없음, URL만 입력)</label>
-        <input id="write-images" placeholder="https://.../1.jpg, https://.../2.jpg" />
+        <label>이미지 파일 (여러 장 선택 가능, 최대 10장)</label>
+        <input id="write-images" type="file" accept="image/*" multiple />
       </div>
       <div class="field-row">
-        <label>음악 파일 URL (1개)</label>
-        <input id="write-music" placeholder="https://.../song.mp3" />
+        <label>음악 파일 (1개)</label>
+        <input id="write-music" type="file" accept="audio/*" />
       </div>
       <div class="field-row">
-        <label>영상 파일 URL (1개)</label>
-        <input id="write-video" placeholder="https://.../clip.mp4" />
+        <label>영상 파일 (1개)</label>
+        <input id="write-video" type="file" accept="video/*" />
       </div>
       <div class="btn-row">
         <button onclick="submitWrite()">확인</button>
